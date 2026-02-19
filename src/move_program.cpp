@@ -3,11 +3,6 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 
 
-//for converting euler angles to quaternions
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#include <tf2/LinearMath/Quaternion.h>
-
-
 int main(int argc, char * argv[])
 {
  // Initialize ROS and create the Node
@@ -25,25 +20,28 @@ int main(int argc, char * argv[])
  // create a MoveGroupInterface object
  moveit::planning_interface::MoveGroupInterface MoveGroupInterface(node, "tanerb");
 
+ // Explicitly set the end-effector link (tip of the kinematic chain)
+ MoveGroupInterface.setEndEffectorLink("end_Link");
 
- // define the target pose
- tf2::Quaternion tf2_quat;
- //in radians
- tf2_quat.setRPY(0, 0, -3.14); // Roll, Pitch, Yaw
- // Convert to quaternion
- geometry_msgs::msg::Quaternion msg_quat = tf2::toMsg(tf2_quat);
+ // Relax goal tolerances so IK solutions near the target are accepted
+ MoveGroupInterface.setGoalPositionTolerance(0.01);      // 1 cm
+ MoveGroupInterface.setGoalOrientationTolerance(0.1);    // ~6 deg - wider needed due to joint6 tight limits (-28° to +15°)
 
+ MoveGroupInterface.allowReplanning(true);
+ MoveGroupInterface.setNumPlanningAttempts(5);
 
- // Set the target pose
- geometry_msgs::msg::Pose target_pose;
- target_pose.orientation = msg_quat;
- target_pose.position.x = 0.1;
- target_pose.position.y = 0.1;
- target_pose.position.z = 0.4;
-  MoveGroupInterface.setPoseTarget(target_pose);
-
+ // Move to the "home" named state defined in the SRDF (guaranteed reachable).
+ // To move to a custom pose instead, use setPositionTarget(x, y, z) for
+ // position-only (orientation free), which is more reliable than setPoseTarget
+ // because joint6 has very tight limits (-28° to +15°) that make many
+ // orientation+position combinations impossible for KDL to solve.
+ //
+ // Known reachable workspace from TF: e.g. setPositionTarget(0.1, 0.09, 0.35)
+ MoveGroupInterface.setNamedTarget("home");
+//  MoveGroupInterface.setPositionTarget(0.1, 0.09, 0.35);
 
  // Plan the motion
+ MoveGroupInterface.setPlanningTime(10.0);
  moveit::planning_interface::MoveGroupInterface::Plan plan1;
  auto const success = static_cast<bool>(MoveGroupInterface.plan(plan1));
  if (success)

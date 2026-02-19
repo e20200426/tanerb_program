@@ -34,7 +34,7 @@ ament_target_dependencies(
   "moveit_ros_planning_interface"
   "rclcpp"
   "trajectory_msgs"
-  "moveit_msgs
+  "moveit_msgs"
   "moveit_core"
 )
 
